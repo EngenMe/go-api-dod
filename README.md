@@ -25,7 +25,7 @@ This project follows DOD principles:
 ## Folder Structure
 
 ```
-go-api-dod/
+.
 ├── cmd/
 │   └── api/
 │       └── main.go                 # Application entry point
@@ -33,12 +33,12 @@ go-api-dod/
 │   └── config.go                   # Configuration loader
 ├── internal/
 │   ├── api/
-│   │   ├── middleware/
-│   │   │   ├── auth.go             # JWT authentication middleware
-│   │   │   └── logging.go          # Request logging middleware
 │   │   ├── handlers/
 │   │   │   ├── auth.go             # Authentication handlers
 │   │   │   └── users.go            # User CRUD handlers
+│   │   ├── middleware/
+│   │   │   ├── auth.go             # JWT authentication middleware
+│   │   │   └── logging.go          # Request logging middleware
 │   │   └── server.go               # API server setup
 │   ├── data/
 │   │   ├── models/
@@ -49,10 +49,8 @@ go-api-dod/
 │   └── utils/
 │       ├── hash.go                 # Password hashing utilities
 │       └── token.go                # JWT token utilities
-├── migrations/
-│   └── 001_create_users_table.sql  # Database migration
-├── .env.example                    # Example environment variables
 ├── go.mod                          # Go module definition
+├── go.sum                          # Go module checksums
 └── README.md                       # Project documentation
 ```
 
