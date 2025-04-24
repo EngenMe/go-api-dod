@@ -16,6 +16,7 @@ type Server struct {
 	Config            config.Config
 	DB                *store.PostgresStore
 	UserStore         *store.UserStore
+	RefreshTokenStore *store.RefreshTokenStore
 	PasswordHasher    *utils.PasswordHasher
 	TokenManager      *utils.TokenManager
 	AuthMiddleware    *middleware.AuthMiddleware
@@ -37,17 +38,20 @@ func NewServer(cfg config.Config, db *store.PostgresStore) *Server {
 
 	// Initialize dependencies
 	userStore := store.NewUserStore(db.DB)
+	refreshTokenStore := store.NewRefreshTokenStore(db.DB)
 	passwordHasher := utils.NewPasswordHasher(cfg.Auth.BcryptCost)
 	tokenManager := utils.NewTokenManager(
 		cfg.Auth.JWTSecret,
 		cfg.Auth.TokenIssuer,
-		cfg.Auth.TokenExpiration,
+		cfg.Auth.AccessTokenExpiration,
+		cfg.Auth.RefreshTokenExpiration,
 	)
 	authMiddleware := middleware.NewAuthMiddleware(tokenManager)
 	loggingMiddleware := middleware.NewLoggingMiddleware()
 	userHandler := handlers.NewUserHandler(userStore)
 	authHandler := handlers.NewAuthHandler(
 		userStore,
+		refreshTokenStore,
 		passwordHasher,
 		tokenManager,
 	)
@@ -57,6 +61,7 @@ func NewServer(cfg config.Config, db *store.PostgresStore) *Server {
 		Config:            cfg,
 		DB:                db,
 		UserStore:         userStore,
+		RefreshTokenStore: refreshTokenStore,
 		PasswordHasher:    passwordHasher,
 		TokenManager:      tokenManager,
 		AuthMiddleware:    authMiddleware,
@@ -76,19 +81,24 @@ func (s *Server) setupRoutes() {
 	// Apply middleware
 	s.Router.Use(s.LoggingMiddleware.RequestLogger())
 
-	// Public routes
-	s.Router.POST("/signup", s.AuthHandler.Signup)
-	s.Router.POST("/login", s.AuthHandler.Login)
-
-	// Protected routes
-	authorized := s.Router.Group("/")
-	authorized.Use(s.AuthMiddleware.RequireAuth())
+	// Versioned API group: /api/v1
+	v1 := s.Router.Group("/api/v1")
 	{
-		authorized.GET("/users", s.UserHandler.ListUsers)
-		authorized.GET("/users/:id", s.UserHandler.GetUser)
-		authorized.POST("/users", s.UserHandler.CreateUser)
-		authorized.PUT("/users/:id", s.UserHandler.UpdateUser)
-		authorized.DELETE("/users/:id", s.UserHandler.DeleteUser)
+		// Public routes
+		v1.POST("/signup", s.AuthHandler.Signup)
+		v1.POST("/login", s.AuthHandler.Login)
+		v1.POST("/refresh", s.AuthHandler.RefreshToken)
+
+		// Protected routes
+		authorized := v1.Group("/")
+		authorized.Use(s.AuthMiddleware.RequireAuth())
+		{
+			authorized.GET("/users", s.UserHandler.ListUsers)
+			authorized.GET("/users/:id", s.UserHandler.GetUser)
+			authorized.POST("/users", s.UserHandler.CreateUser)
+			authorized.PUT("/users/:id", s.UserHandler.UpdateUser)
+			authorized.DELETE("/users/:id", s.UserHandler.DeleteUser)
+		}
 	}
 }
 

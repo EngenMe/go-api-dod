@@ -34,15 +34,16 @@ type DatabaseConfig struct {
 
 // AuthConfig holds authentication-specific configuration
 type AuthConfig struct {
-	JWTSecret       string
-	TokenExpiration time.Duration
-	TokenIssuer     string
-	BcryptCost      int
+	JWTSecret              string
+	AccessTokenExpiration  time.Duration
+	RefreshTokenExpiration time.Duration
+	TokenIssuer            string
+	BcryptCost             int
 }
 
 // Load loads the configuration from environment variables
 func Load() (Config, error) {
-	// Load .env file if it exists
+	// Load the.env file if it exists
 	_ = godotenv.Load()
 
 	var cfg Config
@@ -73,11 +74,28 @@ func Load() (Config, error) {
 		return cfg, errors.New("JWT_SECRET is required")
 	}
 
-	tokenExpiration, err := strconv.Atoi(getEnv("TOKEN_EXPIRATION_HOURS", "24"))
+	accessTokenExpiration, err := strconv.Atoi(
+		getEnv(
+			"ACCESS_TOKEN_EXPIRATION_MINUTES",
+			"15",
+		),
+	)
 	if err != nil {
-		return cfg, errors.New("invalid TOKEN_EXPIRATION_HOURS")
+		return cfg, errors.New("invalid ACCESS_TOKEN_EXPIRATION_MINUTES")
 	}
-	cfg.Auth.TokenExpiration = time.Duration(tokenExpiration) * time.Hour
+	cfg.Auth.AccessTokenExpiration = time.Duration(accessTokenExpiration) * time.Minute
+
+	refreshTokenExpiration, err := strconv.Atoi(
+		getEnv(
+			"REFRESH_TOKEN_EXPIRATION_DAYS",
+			"7",
+		),
+	)
+	if err != nil {
+		return cfg, errors.New("invalid REFRESH_TOKEN_EXPIRATION_DAYS")
+	}
+	cfg.Auth.RefreshTokenExpiration = time.Duration(refreshTokenExpiration) * 24 * time.Hour
+
 	cfg.Auth.TokenIssuer = getEnv("TOKEN_ISSUER", "go-api-dod")
 
 	bcryptCost, err := strconv.Atoi(getEnv("BCRYPT_COST", "10"))

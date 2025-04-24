@@ -36,7 +36,7 @@ func (h *UserHandler) CreateUser(c *gin.Context) {
 		return
 	}
 
-	// Check if user already exists
+	// Check if a user already exists
 	existingUser, err := h.UserStore.GetByEmail(req.Email)
 	if err != nil {
 		c.JSON(

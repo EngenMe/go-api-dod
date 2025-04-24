@@ -46,12 +46,12 @@ func (m *AuthMiddleware) RequireAuth() gin.HandlerFunc {
 			return
 		}
 
-		// Validate the token
-		claims, err := m.TokenManager.Validate(parts[1])
+		// Validate the access token
+		claims, err := m.TokenManager.ValidateAccessToken(parts[1])
 		if err != nil {
 			c.JSON(
 				http.StatusUnauthorized,
-				gin.H{"error": "Invalid or expired token"},
+				gin.H{"error": "Invalid or expired access token"},
 			)
 			c.Abort()
 			return

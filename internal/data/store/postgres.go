@@ -39,5 +39,5 @@ func NewPostgresStore(cfg config.DatabaseConfig) (*PostgresStore, error) {
 
 // RunMigrations runs database migrations using GORM's AutoMigrate
 func (s *PostgresStore) RunMigrations() error {
-	return s.DB.AutoMigrate(&models.User{})
+	return s.DB.AutoMigrate(&models.User{}, &models.RefreshToken{})
 }

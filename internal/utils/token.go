@@ -10,42 +10,77 @@ import (
 
 // TokenManager provides methods for creating and validating JWT tokens
 type TokenManager struct {
-	Secret    []byte
-	Issuer    string
-	ExpiresIn time.Duration
+	Secret                []byte
+	Issuer                string
+	AccessTokenExpiresIn  time.Duration
+	RefreshTokenExpiresIn time.Duration
 }
 
 // NewTokenManager creates a new TokenManager
 func NewTokenManager(
 	secret, issuer string,
-	expiresIn time.Duration,
+	accessTokenExpiresIn, refreshTokenExpiresIn time.Duration,
 ) *TokenManager {
 	return &TokenManager{
-		Secret:    []byte(secret),
-		Issuer:    issuer,
-		ExpiresIn: expiresIn,
+		Secret:                []byte(secret),
+		Issuer:                issuer,
+		AccessTokenExpiresIn:  accessTokenExpiresIn,
+		RefreshTokenExpiresIn: refreshTokenExpiresIn,
 	}
 }
 
+// TokenType represents the type of token
+type TokenType string
+
+const (
+	// AccessToken is a short-lived token used for API authentication
+	AccessToken TokenType = "access"
+	// RefreshToken is a long-lived token used to get new access tokens
+	RefreshToken TokenType = "refresh"
+)
+
 // Claims represents JWT claims
 type Claims struct {
-	UserID uuid.UUID `json:"user_id"`
-	Email  string    `json:"email"`
+	UserID    uuid.UUID `json:"user_id"`
+	Email     string    `json:"email"`
+	TokenType TokenType `json:"token_type"`
 	jwt.RegisteredClaims
 }
 
-// Generate generates a JWT token for a user
-func (m *TokenManager) Generate(userID uuid.UUID, email string) (
+// GenerateAccessToken generates a short-lived access token for a user
+func (m *TokenManager) GenerateAccessToken(userID uuid.UUID, email string) (
 	string,
 	error,
 ) {
 	now := time.Now()
 	claims := Claims{
-		UserID: userID,
-		Email:  email,
+		UserID:    userID,
+		Email:     email,
+		TokenType: AccessToken,
 		RegisteredClaims: jwt.RegisteredClaims{
 			IssuedAt:  jwt.NewNumericDate(now),
-			ExpiresAt: jwt.NewNumericDate(now.Add(m.ExpiresIn)),
+			ExpiresAt: jwt.NewNumericDate(now.Add(m.AccessTokenExpiresIn)),
+			Issuer:    m.Issuer,
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(m.Secret)
+}
+
+// GenerateRefreshToken generates a long-lived refresh token for a user
+func (m *TokenManager) GenerateRefreshToken(userID uuid.UUID, email string) (
+	string,
+	error,
+) {
+	now := time.Now()
+	claims := Claims{
+		UserID:    userID,
+		Email:     email,
+		TokenType: RefreshToken,
+		RegisteredClaims: jwt.RegisteredClaims{
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(m.RefreshTokenExpiresIn)),
 			Issuer:    m.Issuer,
 		},
 	}
@@ -74,4 +109,38 @@ func (m *TokenManager) Validate(tokenString string) (*Claims, error) {
 	}
 
 	return nil, errors.New("invalid token")
+}
+
+// ValidateAccessToken validates an access token
+func (m *TokenManager) ValidateAccessToken(tokenString string) (
+	*Claims,
+	error,
+) {
+	claims, err := m.Validate(tokenString)
+	if err != nil {
+		return nil, err
+	}
+
+	if claims.TokenType != AccessToken {
+		return nil, errors.New("token is not an access token")
+	}
+
+	return claims, nil
+}
+
+// ValidateRefreshToken validates a refresh token
+func (m *TokenManager) ValidateRefreshToken(tokenString string) (
+	*Claims,
+	error,
+) {
+	claims, err := m.Validate(tokenString)
+	if err != nil {
+		return nil, err
+	}
+
+	if claims.TokenType != RefreshToken {
+		return nil, errors.New("token is not a refresh token")
+	}
+
+	return claims, nil
 }

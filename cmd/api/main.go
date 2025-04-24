@@ -27,7 +27,7 @@ func main() {
 		log.Fatalf("Failed to run migrations: %v", err)
 	}
 
-	// Initialize and start API server
+	// Initialize and start an API server
 	server := api.NewServer(cfg, db)
 	addr := fmt.Sprintf(":%d", cfg.Server.Port)
 	log.Printf("Starting server on %s", addr)
